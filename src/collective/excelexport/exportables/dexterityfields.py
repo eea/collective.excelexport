@@ -1,30 +1,33 @@
 # -*- encoding: utf-8 -*-
 from Acquisition import aq_base
-from Products.CMFPlone.utils import safe_unicode
-from collective.excelexport.exportables.base import BaseExportableFactory
-from collective.excelexport.interfaces import IExportable
-from plone import api
-from plone.app.textfield.interfaces import IRichText
-from plone.autoform.interfaces import IFormFieldProvider
-from plone.behavior.interfaces import IBehavior
-from plone.dexterity.interfaces import IDexterityContent
-from plone.dexterity.interfaces import IDexterityFTI
-from plone.namedfile.interfaces import INamedField
-from plone.schemaeditor.schema import IChoice
-from plone.supermodel.interfaces import FIELDSETS_KEY
-from z3c.form.interfaces import NO_VALUE
+from zope.interface import Interface
+from zope.schema.interfaces import IField, IDate, ICollection,\
+    IVocabularyFactory, IBool, IText
+from zope.schema import getFieldsInOrder
 from zope.component import adapts
 from zope.component import getMultiAdapter
 from zope.component import getUtility
 from zope.component.interfaces import ComponentLookupError
 from zope.i18n import translate
 from zope.i18nmessageid.message import Message
-from zope.interface import Interface
-from zope.interface.declarations import implementer
-from zope.schema import getFieldsInOrder
+from zope.interface.declarations import implements
 from zope.schema.interfaces import IContextSourceBinder
-from zope.schema.interfaces import IField, IDate, ICollection, \
-    IVocabularyFactory, IBool, IText, IDatetime
+
+from z3c.form.interfaces import NO_VALUE
+
+from plone.supermodel.interfaces import FIELDSETS_KEY
+from Products.CMFPlone.utils import safe_unicode
+from plone.app.textfield.interfaces import IRichText
+from plone.autoform.interfaces import IFormFieldProvider
+from plone.behavior.interfaces import IBehavior
+from plone.dexterity.interfaces import IDexterityFTI
+from plone.dexterity.interfaces import IDexterityContent
+from plone.namedfile.interfaces import INamedField
+from plone.schemaeditor.schema import IChoice
+from plone import api
+
+from collective.excelexport.interfaces import IExportable
+from collective.excelexport.exportables.base import BaseExportableFactory
 
 
 class FieldWrapper(object):
@@ -106,14 +109,14 @@ def get_exportable(field, context, request):
     try:
         # check if there is a specific adapter for the field name
         exportable = getMultiAdapter(
-            (field, context, request),
-            interface=IExportable,
-            name=field.__name__)
+                            (field, context, request),
+                            interface=IExportable,
+                            name=field.__name__)
     except ComponentLookupError:
         # get the generic adapter for the field
         exportable = getMultiAdapter(
-            (field, context, request),
-            interface=IExportable)
+                            (field, context, request),
+                            interface=IExportable)
 
     return exportable
 
@@ -152,9 +155,9 @@ class IFieldValueGetter(Interface):
         """
 
 
-@implementer(IFieldValueGetter)
 class DexterityValueGetter(object):
     adapts(IDexterityContent)
+    implements(IFieldValueGetter)
 
     def __init__(self, context):
         self.context = context
@@ -166,8 +169,8 @@ class DexterityValueGetter(object):
         return value
 
 
-@implementer(IExportable)
 class BaseFieldRenderer(object):
+    implements(IExportable)
 
     def __init__(self, field, context, request):
         self.field = field
@@ -176,7 +179,7 @@ class BaseFieldRenderer(object):
 
     def __repr__(self):
         return "<%s - %s>" % (self.__class__.__name__,
-                              self.field.__name__)
+                                   self.field.__name__)
 
     def get_value(self, obj):
         return IFieldValueGetter(obj).get(self.field)
@@ -236,37 +239,8 @@ class BooleanFieldRenderer(BaseFieldRenderer):
 class DateFieldRenderer(BaseFieldRenderer):
     adapts(IDate, Interface, Interface)
 
-    def render_value(self, obj):
-        value = self.get_value(obj)
-        if value == NO_VALUE or not value:
-            return None
-        else:
-            return value.strftime("%Y/%m/%d")
-
     def render_collection_entry(self, obj, value):
-        if not value:
-            return u""
         return value.strftime("%Y/%m/%d")
-
-    def render_style(self, obj, base_style):
-        base_style.num_format_str = 'yyyy/mm/dd'
-        return base_style
-
-
-class DateTimeFieldRenderer(BaseFieldRenderer):
-    adapts(IDatetime, Interface, Interface)
-
-    def render_value(self, obj):
-        value = self.get_value(obj)
-        if value == NO_VALUE or not value:
-            return None
-        else:
-            return value.strftime("%Y/%m/%d %H:%M")
-
-    def render_collection_entry(self, obj, value):
-        if not value:
-            return u""
-        return value.strftime("%Y/%m/%d %H:%M")
 
     def render_style(self, obj, base_style):
         base_style.num_format_str = 'yyyy/mm/dd'
@@ -277,35 +251,35 @@ class ChoiceFieldRenderer(BaseFieldRenderer):
     adapts(IChoice, Interface, Interface)
 
     def _get_vocabulary_value(self, obj, value):
-        res = value
-        if res:
-            vocabulary = self.field.vocabulary
-            # for source vocabulary
-            if IContextSourceBinder.providedBy(vocabulary):
-                vocabulary = vocabulary(obj)
-            # for named vocabulary
-            if not vocabulary:
-                vocabularyName = self.field.vocabularyName
-                if vocabularyName:
-                    vocabulary = getUtility(IVocabularyFactory, name=vocabularyName)(obj)
+        if not value:
+            return value
 
-            if vocabulary:
-                try:
-                    term = vocabulary.getTermByToken(value)
-                except LookupError:
-                    term = None
-            else:
+        vocabulary = self.field.vocabulary
+        # for source vocabulary
+        if IContextSourceBinder.providedBy(vocabulary):
+            vocabulary = vocabulary(obj)
+        # for named vocabulary
+        if not vocabulary:
+            vocabularyName = self.field.vocabularyName
+            if vocabularyName:
+                vocabulary = getUtility(IVocabularyFactory, name=vocabularyName)(obj)
+
+        if vocabulary:
+            try:
+                term = vocabulary.getTermByToken(value)
+            except LookupError:
                 term = None
+        else:
+            term = None
 
-            if term:
-                title = term.title
-                if not title:
-                    res = value
-                else:
-                    res = title
+        if term:
+            title = term.title
+            if not title:
+                return value
             else:
-                res = value
-        return safe_unicode(res)
+                return title
+        else:
+            return value
 
     def render_value(self, obj):
         value = self.get_value(obj)
@@ -318,6 +292,7 @@ class ChoiceFieldRenderer(BaseFieldRenderer):
 
 
 class CollectionFieldRenderer(BaseFieldRenderer):
+
     adapts(ICollection, Interface, Interface)
 
     separator = u"\n"
@@ -371,7 +346,6 @@ class RichTextFieldRenderer(TextFieldRenderer):
 
 try:
     from z3c.relationfield.interfaces import IRelation
-
     HAS_RELATIONFIELD = True
 
     class RelationFieldRenderer(BaseFieldRenderer):
@@ -387,9 +361,9 @@ try:
 except:
     HAS_RELATIONFIELD = False
 
+
 try:
     from collective.z3cform.datagridfield.interfaces import IRow
-
     HAS_DATAGRIDFIELD = True
 
     class DictRowFieldRenderer(BaseFieldRenderer):
@@ -401,11 +375,11 @@ try:
             for fieldname, field in fields:
                 sub_renderer = getMultiAdapter((field,
                                                 self.context, self.request),
-                                               interface=IExportable)
+                                                interface=IExportable)
                 field_renderings.append(u"%s : %s" % (
-                    sub_renderer.render_header(),
-                    sub_renderer.render_collection_entry(obj,
-                                                         value.get(fieldname))))
+                                        sub_renderer.render_header(),
+                                        sub_renderer.render_collection_entry(obj,
+                                                value.get(fieldname))))
 
             return u" / ".join([r for r in field_renderings])
 

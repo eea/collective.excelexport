@@ -1,8 +1,7 @@
 # -*- encoding: utf-8 -*-
 from Acquisition import aq_get
 from Products.ATContentTypes.interfaces import IATContentType
-from Products.Archetypes.interfaces import IField, IFileField, IBooleanField, IDateTimeField, ITextField, ILinesField, \
-    IReferenceField
+from Products.Archetypes.interfaces import IField, IFileField, IBooleanField, IDateTimeField, ITextField, ILinesField, IReferenceField
 from Products.CMFCore.utils import getToolByName
 from Products.CMFDynamicViewFTI.interfaces import IDynamicViewTypeInformation
 from Products.CMFPlone.utils import safe_unicode
@@ -16,11 +15,11 @@ from zope.component.interfaces import ComponentLookupError
 from zope.i18n import translate
 from zope.i18nmessageid.message import Message
 from zope.interface import Interface
-from zope.interface.declarations import implementer
+from zope.interface.declarations import implements
 
 
-@implementer(IExportable)
 class BaseFieldRenderer(object):
+    implements(IExportable)
 
     def __init__(self, field, context, request):
         self.field = field
@@ -96,9 +95,9 @@ class ArchetypesFieldsExportableFactory(BaseExportableFactory):
         return exportables
 
 
-@implementer(IFieldValueGetter)
 class ArchetypesValueGetter(object):
     adapts(IATContentType)
+    implements(IFieldValueGetter)
 
     def __init__(self, context):
         self.context = context
@@ -197,7 +196,4 @@ class ReferenceFieldRenderer(BaseFieldRenderer):
             return self.render_collection_entry(obj, value)
 
     def render_collection_entry(self, obj, value):
-        try:
-            return safe_unicode(value.Title()) if value else u""
-        except AttributeError:
-            return value.id
+        return safe_unicode(value.Title()) if value else u""

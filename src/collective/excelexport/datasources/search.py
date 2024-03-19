@@ -1,11 +1,13 @@
 from copy import deepcopy
+
+from zope.interface import Interface
+from zope.component import adapts
 from datetime import datetime
 
-from Products.CMFPlone.interfaces.siteroot import IPloneSiteRoot
-from collective.excelexport.datasources.base import BaseContentsDataSource
 from plone import api
-from zope.component import adapts
-from zope.interface import Interface
+from Products.CMFPlone.interfaces.siteroot import IPloneSiteRoot
+
+from collective.excelexport.datasources.base import BaseContentsDataSource
 
 
 class SearchContentsDataSource(BaseContentsDataSource):
@@ -15,7 +17,7 @@ class SearchContentsDataSource(BaseContentsDataSource):
 
     def get_filename(self):
         return "%s" % (
-            datetime.now().strftime("%d-%m-%Y"))
+                datetime.now().strftime("%d-%m-%Y"))
 
     def get_objects(self):
         query = deepcopy(self.request.form)

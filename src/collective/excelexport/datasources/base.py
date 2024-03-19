@@ -1,12 +1,14 @@
 from collections import OrderedDict
 
-from collective.excelexport.interfaces import IDataSource
-from collective.excelexport.interfaces import IExportableFactory
-from plone import api
-from plone.behavior.interfaces import IBehavior
+from zope.interface import implements
 from zope.component import getAdapters
 from zope.component import getUtility
-from zope.interface import implementer
+
+from plone import api
+from plone.behavior.interfaces import IBehavior
+
+from collective.excelexport.interfaces import IDataSource
+from collective.excelexport.interfaces import IExportableFactory
 
 
 def get_name(column):
@@ -15,20 +17,9 @@ def get_name(column):
     else:
         return column.__class__.__name__
 
-
-_CONFIGURATION_FIELDS = [
-    'allowDiscussion',  # archetypes
-    'allow_discussion',  # dexterity
-    'constrainTypesMode',
-    'excludeFromNav',  # archetypes
-    'exclude_from_nav',  # dexterity
-    'locallyAllowedTypes',
-    'immediatelyAddableTypes',
-    'nextPreviousEnabled',
-]
+CONFIGURATION_FIELDS = ['constrainTypesMode', 'locallyAllowedTypes', 'immediatelyAddableTypes', 'nextPreviousEnabled', 'allowDiscussion', 'excludeFromNav']
 
 
-@implementer(IDataSource)
 class BaseContentsDataSource(object):
     """
     Base class for a datasource that exports contents
@@ -37,17 +28,14 @@ class BaseContentsDataSource(object):
 
     group them by portal type (one sheet by portal type)
     """
+    implements(IDataSource)
     excluded_factories = None
-    excluded_exportables = None
+    excluded_exportables = CONFIGURATION_FIELDS
     exportables_order = None  # use this to specify exportables order using field names
 
     def __init__(self, context, request):
         self.context = context
         self.request = request
-        if not self.excluded_exportables:
-            self.excluded_exportables = api.portal.get_registry_record(
-                name='collective.excelexport.excluded_exportables',
-                default=_CONFIGURATION_FIELDS)
 
     def get_filename(self):
         """Gets the file name (without extension) of the exported excel
@@ -157,6 +145,6 @@ class BaseContentsDataSource(object):
             data.append({'title': title,
                          'objects': p_types_objects[p_type],
                          'exportables': exportables
-                         })
+                        })
 
         return data

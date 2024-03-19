@@ -1,10 +1,12 @@
+from copy import deepcopy
+from zope.interface import Interface
+from zope.component import adapts
 from datetime import datetime
 
-from Products.CMFCore.interfaces import IFolderish
-from collective.excelexport.datasources.base import BaseContentsDataSource
 from plone import api
-from zope.component import adapts
-from zope.interface import Interface
+from Products.CMFCore.interfaces import IFolderish
+
+from collective.excelexport.datasources.base import BaseContentsDataSource
 
 
 class FolderContentsDataSource(BaseContentsDataSource):
@@ -14,15 +16,16 @@ class FolderContentsDataSource(BaseContentsDataSource):
 
     def get_filename(self):
         return "%s-%s" % (
-            datetime.now().strftime("%d-%m-%Y"),
-            self.context.getId(),
-        )
+                datetime.now().strftime("%d-%m-%Y"), self.context.getId())
 
     def get_objects(self):
         catalog = api.portal.get_tool('portal_catalog')
-        brains = catalog.searchResults(
-            REQUEST=self.request,
-            path={'query': '/'.join(self.context.getPhysicalPath()),
-                  'depth': 1},
-        )
+
+        query = deepcopy(self.request.form)
+        query.pop('excelexport.policy', None)
+        brains = catalog.searchResults(**query)
+
+        # brains = catalog.searchResults(REQUEST=self.request,
+        #                                path={'query': '/'.join(self.context.getPhysicalPath()),
+        #                                      'depth': 1})
         return [b.getObject() for b in brains]
